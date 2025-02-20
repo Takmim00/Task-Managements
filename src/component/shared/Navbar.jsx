@@ -4,6 +4,11 @@ import { useContext } from "react";
 
 const Navbar = () => {
     const { user, logOut } = useContext(AuthContext);
+    const handleLogOut = () => {
+        logOut()
+          .then(() => {})
+          .catch((err) => console.error(err));
+      };
   return (
     <div className="navbar  shadow-sm  py-2">
       <div className="flex-1">
