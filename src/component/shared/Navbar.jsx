@@ -1,8 +1,11 @@
 import { Link, NavLink } from "react-router-dom";
+import { AuthContext } from "../../provider/AuthProvider";
+import { useContext } from "react";
 
 const Navbar = () => {
+    const { user, logOut } = useContext(AuthContext);
   return (
-    <div className="navbar  shadow-sm w-11/12 mx-auto py-2">
+    <div className="navbar  shadow-sm  py-2">
       <div className="flex-1">
         <Link to="/" className="flex gap-2 items-center">
           
