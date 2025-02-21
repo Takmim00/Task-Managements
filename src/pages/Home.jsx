@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { FaEdit, FaTrash } from "react-icons/fa";
+import { toast, ToastContainer } from "react-toastify";
 import io from "socket.io-client";
-import { toast, ToastContainer } from 'react-toastify';
 
-const socket = io.connect("http://localhost:5000");
+const socket = io.connect("https://task-management-server-six-chi.vercel.app", {
+  withCredentials: true,
+  transports: ["websocket"]
+});
 
 const Home = () => {
   const [task, setTask] = useState("");
@@ -54,16 +57,19 @@ const Home = () => {
       timestamp: new Date().toLocaleTimeString(),
     };
 
-    const response = await fetch("http://localhost:5000/tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(taskData),
-    });
+    const response = await fetch(
+      "https://task-management-server-six-chi.vercel.app/tasks",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(taskData),
+      }
+    );
 
     const newTask = await response.json();
 
     if (newTask._id) {
-      socket.emit("send_message", newTask);
+      socket.emit("send_task", newTask);
       setTasks((prevTasks) => ({
         ...prevTasks,
         [category]: [...prevTasks[category], newTask],
@@ -87,7 +93,7 @@ const Home = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:5000/tasks/${editTaskData._id}`,
+        `https://task-management-server-six-chi.vercel.app/tasks/${editTaskData._id}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -121,9 +127,12 @@ const Home = () => {
     }
 
     try {
-      const response = await fetch(`http://localhost:5000/tasks/${_id}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `https://task-management-server-six-chi.vercel.app/tasks/${_id}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       const data = await response.json();
       console.log(data.message);
@@ -142,7 +151,7 @@ const Home = () => {
 
   return (
     <div className="flex flex-col items-center p-6 min-h-screen bg-gray-100">
-      <ToastContainer/>
+      <ToastContainer />
       <h2 className="text-2xl font-bold mb-4">Task Management</h2>
 
       {/* Task Input Section */}

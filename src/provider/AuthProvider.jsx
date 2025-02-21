@@ -41,14 +41,21 @@ const AuthProvider = ({ children }) => {
       .then((result) => {
         const loggedUser = result.user;
         const userInfo = {
-            userId:loggedUser.id,
+          userId: loggedUser.id,
           name: loggedUser.displayName,
           email: loggedUser.email,
           photo: loggedUser.photoURL,
         };
 
         return axios
-          .post("http://localhost:5000/users", userInfo)
+          .post(
+            "https://task-management-server-six-chi.vercel.app/users",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+            },
+            userInfo
+          )
           .then((response) => {
             const data = response.data;
             if (data.success) {
@@ -99,7 +106,6 @@ const AuthProvider = ({ children }) => {
     logOut,
     updateUserProfile,
     googleSignIn,
-    
   };
 
   return (

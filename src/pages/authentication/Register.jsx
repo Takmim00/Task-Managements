@@ -41,9 +41,12 @@ const Register = () => {
             email: email,
             photo: photoURL,
           };
-console.log(loggedUser);
+          console.log(loggedUser);
           axios
-            .post("http://localhost:5000/users", userInfo)
+            .post(
+              "https://task-management-server-six-chi.vercel.app/users",
+              userInfo
+            )
             .then((response) => {
               const data = response.data;
               if (data.success) {
