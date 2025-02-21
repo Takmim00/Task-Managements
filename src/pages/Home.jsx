@@ -1,10 +1,8 @@
 import { closestCorners, DndContext } from "@dnd-kit/core";
 import {
   SortableContext,
-  useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { useEffect, useState } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import io from "socket.io-client";
@@ -29,15 +27,15 @@ const Home = () => {
         [data.category]: [...prevTasks[data.category], data],
       }));
     });
-
-    socket.on("delete_task", (data) => {
-      setTasks((prevTasks) => ({
-        ...prevTasks,
-        [data.category]: prevTasks[data.category].map((task) =>
-          task._id === data._id ? data : task
-        ),
-      }));
+    socket.on("delete_task", ({ _id, category }) => {
+      setTasks((prevTasks) => {
+        return {
+          ...prevTasks,
+          [category]: prevTasks[category].filter((task) => task._id !== _id),
+        };
+      });
     });
+  
 
     socket.on("edit_task", (updatedTask) => {
       console.log(updatedTask);
@@ -54,10 +52,19 @@ const Home = () => {
       socket.off("delete_task");
       socket.off("edit_task");
     };
-  }, []);
+  }, [tasks]);
 
   const sendTask = async () => {
     if (task.trim() === "") return;
+    if (!task.trim()) {
+      toast.error("Task title is required!");
+      return;
+    }
+    
+    if (task.length > 50) {
+      toast.error("Task title must be 50 characters or less!");
+      return;
+    }
 
     const taskData = {
       category,
@@ -134,7 +141,6 @@ const Home = () => {
       console.error("Error: Task _id is undefined!");
       return;
     }
-
     try {
       const response = await fetch(
         `https://task-management-server-six-chi.vercel.app/tasks/${_id}`,
@@ -147,16 +153,14 @@ const Home = () => {
       const data = await response.json();
       console.log(data.message);
       if (data.deletedCount > 0) {
-        console.log(data.deletedCount > 0);
+        socket.emit("delete_task", { _id, category });
 
-        console.log(setTasks);
         setTasks((prevTasks) => ({
           ...prevTasks,
           [category]: prevTasks[category].filter((task) => task._id !== _id),
         }));
-        socket.emit("delete_task", { _id, category });
+  
         toast.success("Task deleted successfully!");
-        console.log("Task deleted successfully!");
       }
     } catch (error) {
       console.error("Error deleting task:", error);
@@ -166,32 +170,43 @@ const Home = () => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    setTasks((prevTasks) => {
-      const category = Object.keys(prevTasks).find((cat) =>
-        prevTasks[cat].some((task) => task._id === active.id)
-      );
-
-      if (!category) return prevTasks;
-
-      const newTasks = [...prevTasks[category]];
-      const oldIndex = newTasks.findIndex((task) => task._id === active.id);
-      const newIndex = newTasks.findIndex((task) => task._id === over.id);
-
-      if (oldIndex !== -1 && newIndex !== -1) {
-        const [movedTask] = newTasks.splice(oldIndex, 1);
-        newTasks.splice(newIndex, 0, movedTask);
+    let sourceCategory, destinationCategory;
+    Object.keys(tasks).forEach((cat) => {
+      if (tasks[cat].some((task) => task._id === active.id)) {
+        sourceCategory = cat;
       }
-
-      return { ...prevTasks, [category]: newTasks };
+      if (tasks[cat].some((task) => task._id === over.id)) {
+        destinationCategory = cat;
+      }
     });
-  };
 
-  const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id: task._id });
+    if (!sourceCategory || !destinationCategory) return;
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    setTasks((prevTasks) => {
+      const sourceTasks = [...prevTasks[sourceCategory]];
+      const destinationTasks =
+        sourceCategory === destinationCategory
+          ? sourceTasks
+          : [...prevTasks[destinationCategory]];
+
+      const movedTaskIndex = sourceTasks.findIndex(
+        (task) => task._id === active.id
+      );
+      const movedTask = sourceTasks[movedTaskIndex];
+
+      if (!movedTask) return prevTasks;
+
+      sourceTasks.splice(movedTaskIndex, 1);
+      destinationTasks.push({ ...movedTask, category: destinationCategory });
+
+      return {
+        ...prevTasks,
+        [sourceCategory]: sourceTasks,
+        [destinationCategory]: destinationTasks,
+      };
+    });
+
+    socket.emit("move_task", { _id: active.id, category: destinationCategory });
   };
 
   return (
@@ -216,6 +231,7 @@ const Home = () => {
           placeholder="Enter Task..."
           value={task}
           onChange={(e) => setTask(e.target.value)}
+          maxLength={50}
           className="input input-bordered w-full mb-2"
         />
         <button className="btn btn-primary w-full" onClick={sendTask}>
