@@ -1,11 +1,18 @@
+import { closestCorners, DndContext } from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useEffect, useState } from "react";
-import { FaEdit, FaTrash } from "react-icons/fa";
 import { toast, ToastContainer } from "react-toastify";
 import io from "socket.io-client";
+import Task from "./Task";
 
 const socket = io.connect("https://task-management-server-six-chi.vercel.app", {
   withCredentials: true,
-  transports: ["websocket"]
+  transports: ["websocket"],
 });
 
 const Home = () => {
@@ -26,13 +33,14 @@ const Home = () => {
     socket.on("delete_task", (data) => {
       setTasks((prevTasks) => ({
         ...prevTasks,
-        [data.category]: prevTasks[data.category].filter(
-          (task) => task._id !== data._id
+        [data.category]: prevTasks[data.category].map((task) =>
+          task._id === data._id ? data : task
         ),
       }));
     });
 
     socket.on("edit_task", (updatedTask) => {
+      console.log(updatedTask);
       setTasks((prevTasks) => ({
         ...prevTasks,
         [updatedTask.category]: prevTasks[updatedTask.category].map((task) =>
@@ -80,6 +88,7 @@ const Home = () => {
   };
 
   const openEditModal = (task) => {
+    console.log("Edit button clicked", task);
     setEditTaskData(task);
     setModalOpen(true);
   };
@@ -131,22 +140,58 @@ const Home = () => {
         `https://task-management-server-six-chi.vercel.app/tasks/${_id}`,
         {
           method: "DELETE",
+          headers: { "Content-Type": "application/json" },
         }
       );
 
       const data = await response.json();
       console.log(data.message);
       if (data.deletedCount > 0) {
-        socket.emit("delete_task", { _id, category });
+        console.log(data.deletedCount > 0);
+
+        console.log(setTasks);
         setTasks((prevTasks) => ({
           ...prevTasks,
           [category]: prevTasks[category].filter((task) => task._id !== _id),
         }));
+        socket.emit("delete_task", { _id, category });
         toast.success("Task deleted successfully!");
+        console.log("Task deleted successfully!");
       }
     } catch (error) {
       console.error("Error deleting task:", error);
     }
+  };
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    setTasks((prevTasks) => {
+      const category = Object.keys(prevTasks).find((cat) =>
+        prevTasks[cat].some((task) => task._id === active.id)
+      );
+
+      if (!category) return prevTasks;
+
+      const newTasks = [...prevTasks[category]];
+      const oldIndex = newTasks.findIndex((task) => task._id === active.id);
+      const newIndex = newTasks.findIndex((task) => task._id === over.id);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const [movedTask] = newTasks.splice(oldIndex, 1);
+        newTasks.splice(newIndex, 0, movedTask);
+      }
+
+      return { ...prevTasks, [category]: newTasks };
+    });
+  };
+
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id: task._id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
   };
 
   return (
@@ -179,39 +224,30 @@ const Home = () => {
       </div>
 
       {/* Task Display Section */}
-      <div className="grid grid-cols-3 gap-6 mt-6 w-full max-w-4xl">
+      <div className="grid md:grid-cols-3 grid-cols-1 gap-6 mt-6 w-full max-w-4xl">
         {["todo", "inprogress", "done"].map((cat) => (
           <div key={cat} className="bg-white shadow-md p-4 rounded-lg">
             <h3 className="text-lg font-semibold mb-2 capitalize">
               {cat.replace("_", " ")}
             </h3>
-            {tasks[cat].map((task) => (
-              <div
-                key={task._id}
-                className="p-2 border-b flex justify-between items-center"
+            <DndContext
+              collisionDetection={closestCorners}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={tasks[cat].map((task) => task._id)}
+                strategy={verticalListSortingStrategy}
               >
-                <div>
-                  <p>{task.title}</p>
-                  <span className="text-xs text-gray-500">
-                    {new Date(task.timestamp).toLocaleTimeString("en-US", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: true,
-                    })}
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <FaEdit
-                    className="text-blue-500 cursor-pointer"
-                    onClick={() => openEditModal(task)}
+                {tasks[cat].map((task) => (
+                  <Task
+                    key={task._id}
+                    task={task}
+                    openEditModal={openEditModal}
+                    deleteTask={deleteTask}
                   />
-                  <FaTrash
-                    className="text-red-500 cursor-pointer"
-                    onClick={() => deleteTask(task._id)}
-                  />
-                </div>
-              </div>
-            ))}
+                ))}
+              </SortableContext>
+            </DndContext>
           </div>
         ))}
       </div>
