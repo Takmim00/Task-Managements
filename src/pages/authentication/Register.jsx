@@ -80,7 +80,7 @@ const Register = () => {
     <div>
       <ToastContainer />
       <div className=" flex justify-center items-center my-6">
-        <div className="flex flex-col lg:flex-row bg-white shadow-2xl rounded-lg  mx-auto  ">
+        <div className="  bg-white shadow-2xl rounded-lg  mx-auto  ">
           <div className=" p-8">
             <h2 className="text-2xl font-semibold text-center">
               Register your account

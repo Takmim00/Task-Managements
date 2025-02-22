@@ -28,7 +28,7 @@ const Navbar = () => {
         <div className="flex-1">
           <Link to="/" className="flex gap-2 items-center">
             <img src={task} alt="" className="h-8" />
-            <p className="text-2xl font-semibold text-gray-800">StudyHive</p>
+            <p className="text-2xl font-semibold text-gray-800">Task</p>
           </Link>
         </div>
         <div className=" flex items-center">

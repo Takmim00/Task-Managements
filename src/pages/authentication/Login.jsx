@@ -42,8 +42,8 @@ const Login = () => {
       <ToastContainer />
 
       <div className=" flex justify-center items-center my-6">
-        <div className="flex flex-col lg:flex-row bg-white shadow-2xl rounded-lg  py-6 ">
-          <div className=" p-8">
+        <div className=" bg-white shadow-2xl rounded-lg   py-6 ">
+          <div className=" ">
             <h2 className="text-2xl font-semibold text-center">
               Login your account
             </h2>
