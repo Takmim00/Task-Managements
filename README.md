@@ -1,5 +1,5 @@
 
-```markdown
+
 # 📝 Task Management Application
 
 A simple, real-time task management application where users can add, edit, delete, and reorder tasks with a drag-and-drop interface. The app categorizes tasks into **To-Do, In Progress, and Done**, ensuring seamless task tracking. Changes are instantly saved to the database, providing a persistent and real-time experience.
