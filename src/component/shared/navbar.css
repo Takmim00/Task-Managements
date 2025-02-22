@@ -1,0 +1,39 @@
+/* Apply dark mode to everything */
+.dark-theme {
+    background-color: #121212;
+    color: #ffffff;
+    transition: background-color 0.3s, color 0.3s;
+  }
+  
+  /* Ensure containers and cards also change */
+  .dark-theme .container,
+  .dark-theme .task-card {
+    background-color: #1e1e1e;
+    color: white;
+    box-shadow: 0 2px 10px rgba(255, 255, 255, 0.1);
+  }
+  
+  /* Update input fields */
+  .dark-theme input,
+  .dark-theme textarea,
+  .dark-theme select {
+    background-color: #252525;
+    color: white;
+    border: 1px solid #444;
+  }
+  
+  /* Button fix */
+  .dark-theme .btn {
+    background-color: #444;
+    color: white;
+  }
+  
+  .dark-theme .btn:hover {
+    background-color: #666;
+  }
+  .dark-theme .task-card {
+    background-color: #1e1e1e !important;
+    color: white !important;
+    opacity: 1 !important;
+  }
+  

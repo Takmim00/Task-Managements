@@ -2,6 +2,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { FaEdit, FaTrash } from "react-icons/fa";
 
+
 const Task = ({ task, openEditModal, deleteTask }) => {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: task._id });
@@ -15,7 +16,7 @@ const Task = ({ task, openEditModal, deleteTask }) => {
     <div
       ref={setNodeRef}
       style={style}
-      className="p-2 border-b flex justify-between items-center bg-gray-50 cursor-pointer"
+      className=" task-card p-2 border-b flex justify-between items-center bg-gray-50 cursor-pointer"
     >
       <div {...attributes} {...listeners} className="flex-1">
         <p>{task.title}</p>

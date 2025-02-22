@@ -3,9 +3,10 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import io from "socket.io-client";
+import { AuthContext } from "./../provider/AuthProvider";
 import Task from "./Task";
 
 const socket = io.connect("https://task-management-server-six-chi.vercel.app", {
@@ -14,11 +15,33 @@ const socket = io.connect("https://task-management-server-six-chi.vercel.app", {
 });
 
 const Home = () => {
+  const { user } = useContext(AuthContext);
   const [task, setTask] = useState("");
   const [category, setCategory] = useState("todo");
   const [tasks, setTasks] = useState({ todo: [], inprogress: [], done: [] });
   const [editTaskData, setEditTaskData] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const response = await fetch(
+          "https://task-management-server-six-chi.vercel.app/tasks"
+        );
+        const data = await response.json();
+
+        const categorizedTasks = { todo: [], inprogress: [], done: [] };
+        data.forEach((task) => {
+          categorizedTasks[task.category].push(task);
+        });
+
+        setTasks(categorizedTasks);
+      } catch (error) {
+        console.error("Error fetching tasks:", error);
+      }
+    };
+
+    fetchTasks();
+  }, []);
 
   useEffect(() => {
     socket.on("receive_message", (data) => {
@@ -27,15 +50,6 @@ const Home = () => {
         [data.category]: [...prevTasks[data.category], data],
       }));
     });
-    socket.on("delete_task", ({ _id, category }) => {
-      setTasks((prevTasks) => {
-        return {
-          ...prevTasks,
-          [category]: prevTasks[category].filter((task) => task._id !== _id),
-        };
-      });
-    });
-  
 
     socket.on("edit_task", (updatedTask) => {
       console.log(updatedTask);
@@ -45,6 +59,20 @@ const Home = () => {
           task._id === updatedTask._id ? updatedTask : task
         ),
       }));
+    });
+    socket.on("delete_task", (taskId) => {
+      setTasks((prevTasks) => {
+        const updatedTasks = { ...prevTasks };
+        Object.keys(updatedTasks).forEach((category) => {
+          updatedTasks[category] = updatedTasks[category].filter(
+            (task) => task._id !== taskId
+          );
+        });
+        return updatedTasks;
+      });
+    });
+    socket.on("update_tasks", ({ category, tasks }) => {
+      setTasks((prevTasks) => ({ ...prevTasks, [category]: tasks }));
     });
 
     return () => {
@@ -60,7 +88,7 @@ const Home = () => {
       toast.error("Task title is required!");
       return;
     }
-    
+
     if (task.length > 50) {
       toast.error("Task title must be 50 characters or less!");
       return;
@@ -70,6 +98,7 @@ const Home = () => {
       category,
       title: task,
       timestamp: new Date().toLocaleTimeString(),
+      userEmail: user?.email,
     };
 
     const response = await fetch(
@@ -135,87 +164,77 @@ const Home = () => {
       console.error("Error updating task:", error);
     }
   };
-
-  const deleteTask = async (_id, category) => {
-    if (!_id) {
-      console.error("Error: Task _id is undefined!");
-      return;
-    }
+  const deleteTask = async (taskId) => {
     try {
       const response = await fetch(
-        `https://task-management-server-six-chi.vercel.app/tasks/${_id}`,
+        `https://task-management-server-six-chi.vercel.app/tasks/${taskId}`,
         {
           method: "DELETE",
-          headers: { "Content-Type": "application/json" },
         }
       );
 
-      const data = await response.json();
-      console.log(data.message);
-      if (data.deletedCount > 0) {
-        socket.emit("delete_task", { _id, category });
+      const result = await response.json();
 
-        setTasks((prevTasks) => ({
-          ...prevTasks,
-          [category]: prevTasks[category].filter((task) => task._id !== _id),
-        }));
-  
-        toast.success("Task deleted successfully!");
+      if (result.success) {
+        socket.emit("delete_task", taskId);
+        setTasks((prevTasks) => {
+          const updatedTasks = { ...prevTasks };
+          Object.keys(updatedTasks).forEach((category) => {
+            updatedTasks[category] = updatedTasks[category].filter(
+              (task) => task._id !== taskId
+            );
+          });
+          return updatedTasks;
+        });
       }
     } catch (error) {
       console.error("Error deleting task:", error);
     }
   };
+
   const handleDragEnd = (event) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    let sourceCategory, destinationCategory;
+    let category;
     Object.keys(tasks).forEach((cat) => {
       if (tasks[cat].some((task) => task._id === active.id)) {
-        sourceCategory = cat;
-      }
-      if (tasks[cat].some((task) => task._id === over.id)) {
-        destinationCategory = cat;
+        category = cat;
       }
     });
 
-    if (!sourceCategory || !destinationCategory) return;
+    if (!category) return;
 
     setTasks((prevTasks) => {
-      const sourceTasks = [...prevTasks[sourceCategory]];
-      const destinationTasks =
-        sourceCategory === destinationCategory
-          ? sourceTasks
-          : [...prevTasks[destinationCategory]];
+      const updatedTasks = { ...prevTasks };
+      const categoryTasks = [...updatedTasks[category]];
 
-      const movedTaskIndex = sourceTasks.findIndex(
+      const oldIndex = categoryTasks.findIndex(
         (task) => task._id === active.id
       );
-      const movedTask = sourceTasks[movedTaskIndex];
+      const newIndex = categoryTasks.findIndex((task) => task._id === over.id);
 
-      if (!movedTask) return prevTasks;
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const [movedTask] = categoryTasks.splice(oldIndex, 1);
+        categoryTasks.splice(newIndex, 0, movedTask);
+      }
 
-      sourceTasks.splice(movedTaskIndex, 1);
-      destinationTasks.push({ ...movedTask, category: destinationCategory });
+      updatedTasks[category] = categoryTasks;
 
-      return {
-        ...prevTasks,
-        [sourceCategory]: sourceTasks,
-        [destinationCategory]: destinationTasks,
-      };
+      // Emit the reorder event
+      socket.emit("reorder_tasks", { category, tasks: categoryTasks });
+
+      return updatedTasks;
     });
-
-    socket.emit("move_task", { _id: active.id, category: destinationCategory });
   };
 
   return (
-    <div className="flex flex-col items-center p-6 min-h-screen bg-gray-100">
+    <div className="flex flex-col items-center p-6 min-h-screen ">
       <ToastContainer />
       <h2 className="text-2xl font-bold mb-4">Task Management</h2>
 
       {/* Task Input Section */}
-      <div className="bg-white shadow-md p-4 rounded-lg w-full max-w-md">
+      <div className=" shadow-md p-4 rounded-lg w-full max-w-md">
         <select
           className="select select-bordered w-full mb-2"
           value={category}
@@ -242,7 +261,7 @@ const Home = () => {
       {/* Task Display Section */}
       <div className="grid md:grid-cols-3 grid-cols-1 gap-6 mt-6 w-full max-w-4xl">
         {["todo", "inprogress", "done"].map((cat) => (
-          <div key={cat} className="bg-white shadow-md p-4 rounded-lg">
+          <div key={cat} className=" shadow-md p-4 rounded-lg">
             <h3 className="text-lg font-semibold mb-2 capitalize">
               {cat.replace("_", " ")}
             </h3>
